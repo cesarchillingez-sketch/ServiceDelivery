@@ -428,7 +428,7 @@
             }, 12000);
         }
 
-        // --- 6. RENDER LOGIC ---
+       // --- 6. RENDER LOGIC ---
         function renderDashboard(data, isInitialLoad = false) {
             document.getElementById('client-name-display').innerText = data.client_name;
             
@@ -453,6 +453,45 @@
                 badge.classList.remove('hidden');
             } else {
                 badge.classList.add('hidden');
+            }
+
+            // --- NEW: DYNAMIC SCOPE RENDERING ---
+            const scopeContainer = document.getElementById('scope-list');
+            scopeContainer.innerHTML = '';
+            try {
+                // Try to parse it if you typed it as a JSON array in Google Sheets: ["Website", "SEO"]
+                const scopes = JSON.parse(data.approved_scope);
+                scopes.forEach(item => {
+                    scopeContainer.innerHTML += `<li class="flex items-start gap-3"><i data-lucide="check" class="w-4 h-4 mt-0.5 text-zinc-500"></i> ${item}</li>`;
+                });
+            } catch(e) {
+                // Fallback if you just typed plain text in the sheet: "Website, SEO, Branding"
+                scopeContainer.innerHTML = `<li class="flex items-start gap-3"><i data-lucide="check" class="w-4 h-4 mt-0.5 text-zinc-500"></i> ${data.approved_scope || 'No scope parameters defined yet.'}</li>`;
+            }
+
+            // --- NEW: DYNAMIC FINANCIALS RENDERING ---
+            const financialsContainer = document.querySelector('#tab-financials .space-y-4');
+            if (data.stats.unpaid_invoices > 0) {
+                financialsContainer.innerHTML = `
+                    <div class="p-5 rounded-lg border border-red-500/20 bg-red-500/5 flex flex-col gap-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Outstanding Milestone Payment</span>
+                            <span class="text-xs uppercase tracking-wider px-2 py-1 bg-red-500/20 text-red-400 rounded">Due</span>
+                        </div>
+                        <p class="text-xl font-display text-white">Invoice Pending</p>
+                        <p class="text-xs text-zinc-400">You have ${data.stats.unpaid_invoices} unpaid invoice(s). Please check your email for the secure payment link to resume operations.</p>
+                    </div>
+                `;
+            } else {
+                financialsContainer.innerHTML = `
+                    <div class="p-5 rounded-lg border border-white/5 bg-white/[0.02] flex flex-col gap-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-zinc-400">Account Status</span>
+                            <span class="text-xs uppercase tracking-wider px-2 py-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded">Settled</span>
+                        </div>
+                        <p class="text-sm text-zinc-400">All current milestones are paid. No pending invoices.</p>
+                    </div>
+                `;
             }
 
             // Render Requests Queue
@@ -534,7 +573,7 @@
                 currentState.timelineLength = data.timeline.length;
             }
         }
-
+                
         // --- 7. FORM SUBMISSIONS ---
         
         // Chat Submit
