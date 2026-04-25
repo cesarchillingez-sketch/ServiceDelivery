@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15D | Sovereign Command</title>
+    
+    <!-- Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { gold: '#D4AF37', base: '#0B0B0D' }, fontFamily: { sans: ['Lexend', 'sans-serif'], display: ['Space Grotesk', 'sans-serif'] } } }
+        }
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root { --gold: #D4AF37; --bg-base: #0B0B0D; }
+        body { background-color: var(--bg-base); color: #f4f4f5; overflow: hidden; }
+        .glass-panel { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); border-radius: 12px; }
+        .sov-btn { position: relative; overflow: hidden; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding: 10px 20px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 14px; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .sov-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); }
+        .sov-btn:disabled { opacity: 0.5; pointer-events: none; }
+        .btn-approve { background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .btn-approve:hover { background: rgba(34, 197, 94, 0.2); }
+        .btn-quote { background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .btn-quote:hover { background: rgba(59, 130, 246, 0.2); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .nav-btn.active { background: rgba(255,255,255,0.1); color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-zinc-800/20 blur-[120px] pointer-events-none -z-10"></div>
+
+    <!-- TOAST -->
+    <div id="toast-container" class="fixed top-6 right-6 z-50 flex flex-col gap-3"></div>
+
+    <!-- LOGIN -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-6 transition-opacity duration-500">
+        <div class="glass-panel w-full max-w-sm p-8 text-center">
+            <h1 class="text-3xl font-bold font-display tracking-tight mb-6"><span class="text-gold">15D</span> Command</h1>
+            <form id="login-form" class="space-y-4">
+                <input type="password" id="admin-code" required placeholder="Master Passcode" class="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold/50 text-center font-mono">
+                <div id="login-error" class="hidden text-red-400 text-sm bg-red-400/10 border border-red-400/20 p-2 rounded-lg"></div>
+                <button type="submit" id="login-btn" class="sov-btn w-full">Access Network <i data-lucide="unlock" class="w-[16px] h-[16px]"></i></button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app-screen" class="hidden h-screen flex flex-col md:flex-row opacity-0 transition-opacity duration-500">
+        
+        <aside class="w-full md:w-72 border-r border-white/5 flex flex-col p-6 bg-base z-10 hidden md:flex">
+            <div class="mb-10">
+                <h1 class="text-2xl font-bold font-display"><span class="text-gold">15D</span> Admin</h1>
+                <p class="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-sans">Sovereign Control</p>
+            </div>
+            
+            <nav class="flex-1 space-y-2">
+                <button onclick="switchTab('queue')" id="nav-queue" class="nav-btn active w-full flex items-center justify-between px-4 py-3 rounded-lg text-white font-medium text-sm transition-all">
+                    <div class="flex items-center gap-3"><i data-lucide="inbox" class="w-[16px] h-[16px]"></i> Global Queue</div>
+                    <span id="queue-badge" class="hidden bg-gold/20 text-gold text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+                </button>
+                <button onclick="switchTab('matrix')" id="nav-matrix" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-sm transition-all">
+                    <div class="flex items-center gap-3"><i data-lucide="users" class="w-[16px] h-[16px]"></i> Clients Matrix</div>
+                </button>
+            </nav>
+            
+            <div class="pt-6 border-t border-white/5 mt-auto text-sm text-zinc-400 flex items-center justify-between">
+                <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> API Linked</div>
+                <button onclick="fetchAdminData()" title="Force Refresh"><i data-lucide="refresh-cw" class="w-4 h-4 hover:text-white cursor-pointer"></i></button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-screen overflow-hidden">
+            <div class="p-6 md:p-10 border-b border-white/5 bg-black/20 shrink-0">
+                <h2 class="text-2xl font-display" id="header-title">Scope Engine Routing</h2>
+            </div>
+
+            <!-- TAB 1: QUEUE -->
+            <div id="tab-queue" class="flex-1 overflow-y-auto p-6 md:p-10 tab-content block">
+                <div id="queue-container" class="space-y-4 max-w-4xl">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- TAB 2: MATRIX -->
+            <div id="tab-matrix" class="flex-1 overflow-y-auto p-6 md:p-10 tab-content hidden">
+                <div class="glass-panel overflow-hidden border border-white/5">
+                    <table class="w-full text-left text-sm text-zinc-300">
+                        <thead class="text-xs text-zinc-500 uppercase bg-black/40 border-b border-white/5">
+                            <tr>
+                                <th class="px-6 py-4">Project ID</th>
+                                <th class="px-6 py-4">Client Name</th>
+                                <th class="px-6 py-4">Status</th>
+                                <th class="px-6 py-4 text-right">Unpaid</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-container" class="divide-y divide-white/5 bg-black/20">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // PASTE YOUR BRAND NEW API URL HERE
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwpAbikbZVTIvLKgS1kUBXEam_JqBVBPrbUkTdxknQh0hFINxocJEAtUADFZMqGWByfYQ/exec';
+        let adminCode = '';
+
+        document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => { tab.classList.remove('block'); tab.classList.add('hidden'); });
+            document.getElementById('tab-' + tabId).classList.remove('hidden'); document.getElementById('tab-' + tabId).classList.add('block');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active', 'text-white'));
+            document.getElementById('nav-' + tabId).classList.add('active', 'text-white');
+            document.getElementById('header-title').innerText = tabId === 'queue' ? 'Scope Engine Routing' : 'Client Operations Matrix';
+        }
+
+        async function apiCall(action, payload = {}) {
+            payload.admin_code = adminCode; // Inject god-mode password into every payload
+            const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: action, payload: payload }) });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+            return result.data;
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const errorDiv = document.getElementById('login-error');
+            adminCode = document.getElementById('admin-code').value;
+
+            btn.disabled = true; btn.innerHTML = `<i data-lucide="loader-2" class="w-[16px] h-[16px] animate-spin"></i>`;
+            errorDiv.classList.add('hidden'); lucide.createIcons();
+
+            try {
+                await fetchAdminData();
+                document.getElementById('login-screen').classList.add('hidden');
+                const app = document.getElementById('app-screen');
+                app.classList.remove('hidden'); setTimeout(() => app.classList.remove('opacity-0'), 50);
+                
+                // Silent Poll every 30 seconds for admin
+                setInterval(fetchAdminData, 30000);
+            } catch (error) {
+                errorDiv.innerText = error.message; errorDiv.classList.remove('hidden');
+                btn.disabled = false; btn.innerHTML = `Access Network <i data-lucide="unlock"></i>`; lucide.createIcons();
+            }
+        });
+
+        async function fetchAdminData() {
+            try {
+                const data = await apiCall('getAdminDashboard');
+                renderAdminUI(data);
+            } catch(e) { showToast("Sync Error", e.message); }
+        }
+
+        function renderAdminUI(data) {
+            // 1. Render Matrix
+            const matrix = document.getElementById('matrix-container');
+            matrix.innerHTML = '';
+            data.projects.forEach(p => {
+                const isLocked = p.state === 'Paused_Unpaid';
+                matrix.innerHTML += `
+                    <tr class="hover:bg-white/[0.02] transition-colors">
+                        <td class="px-6 py-4 font-mono text-zinc-400">${p.project_id}</td>
+                        <td class="px-6 py-4 font-medium text-white">${p.client_name}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 text-[10px] uppercase rounded border ${isLocked ? 'text-red-400 border-red-500/20 bg-red-500/10' : 'text-green-400 border-green-500/20 bg-green-500/10'}">${p.state.replace('_', ' ')}</span></td>
+                        <td class="px-6 py-4 text-right ${p.unpaid > 0 ? 'text-red-400 font-bold' : 'text-zinc-500'}">${p.unpaid}</td>
+                    </tr>
+                `;
+            });
+
+            // 2. Render Action Queue
+            const queue = document.getElementById('queue-container');
+            queue.innerHTML = '';
+            
+            // Filter only items that require Admin action
+            const actionableItems = data.queue.filter(r => r.status === 'Awaiting_Admin_Verification' || r.status === 'Disputed' || r.status === 'Intake');
+            
+            const badge = document.getElementById('queue-badge');
+            badge.innerText = actionableItems.length;
+            actionableItems.length > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
+
+            if (actionableItems.length === 0) {
+                queue.innerHTML = `<div class="glass-panel p-10 text-center text-zinc-500"><i data-lucide="check-circle" class="w-10 h-10 mx-auto mb-3 opacity-50"></i><p>Zero items in the routing queue.</p></div>`;
+            } else {
+                actionableItems.forEach(req => {
+                    const isDispute = req.status === 'Disputed';
+                    const colorLabel = isDispute ? 'text-red-400' : 'text-blue-400';
+                    const borderStyle = isDispute ? '!border-l-red-500' : '!border-l-blue-500';
+                    
+                    queue.innerHTML += `
+                        <div class="glass-panel p-6 flex flex-col gap-4 border-l-4 ${borderStyle}">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-xs uppercase tracking-wider ${colorLabel} font-bold">${req.status.replace(/_/g, ' ')}</span>
+                                    <h3 class="text-lg font-medium mt-1">${req.client_name} <span class="text-zinc-500 text-sm">(${req.project_id})</span></h3>
+                                </div>
+                                <span class="text-xs font-mono text-zinc-500">${req.request_id}</span>
+                            </div>
+                            
+                            <div class="bg-black/50 p-4 rounded-lg text-sm text-zinc-300 border border-white/5">
+                                <strong>${req.type}:</strong> ${req.details}
+                            </div>
+                            
+                            <div class="flex items-center gap-3 pt-2">
+                                <button onclick="updateStatus('${req.request_id}', '${req.project_id}', 'WIP')" class="sov-btn btn-approve"><i data-lucide="play" class="w-4 h-4"></i> Approve to WIP</button>
+                                <button onclick="updateStatus('${req.request_id}', '${req.project_id}', 'Pending_Quote')" class="sov-btn btn-quote"><i data-lucide="file-text" class="w-4 h-4"></i> Out of Scope (Quote)</button>
+                                ${isDispute ? `<button onclick="updateStatus('${req.request_id}', '${req.project_id}', 'Completed')" class="sov-btn"><i data-lucide="x" class="w-4 h-4"></i> Overrule Dispute</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            lucide.createIcons();
+        }
+
+        async function updateStatus(reqId, projId, newStatus) {
+            if(!confirm(`Are you sure you want to change this request to ${newStatus}?`)) return;
+            try {
+                await apiCall('updateRequestStatus', { request_id: reqId, project_id: projId, new_status: newStatus, admin_message: 'Routing complete.' });
+                showToast("Success", `Request moved to ${newStatus.replace('_', ' ')}`);
+                fetchAdminData(); // Refresh UI
+            } catch(e) {
+                showToast("Error", e.message);
+            }
+        }
+
+        function showToast(title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'glass-panel !p-4 !bg-black/80 flex items-start gap-3 w-80 shadow-2xl border-l-2 !border-l-gold transition-all duration-300 opacity-0 translate-x-10';
+            toast.innerHTML = `<div class="mt-0.5 text-gold"><i data-lucide="bell" class="w-[16px] h-[16px]"></i></div><div class="flex-1"><h4 class="text-sm font-display font-bold text-white">${title}</h4><p class="text-xs text-zinc-400 mt-1">${message}</p></div>`;
+            container.appendChild(toast); lucide.createIcons();
+            setTimeout(() => { toast.classList.remove('opacity-0', 'translate-x-10'); }, 10);
+            setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-10'); setTimeout(() => toast.remove(), 300); }, 4000);
+        }
+    </script>
+</body>
+</html>
