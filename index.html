@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15D | Sovereign Workspace</title>
+    
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { gold: '#D4AF37', base: '#0B0B0D', muted: '#a1a1aa' },
+                    fontFamily: { sans: ['Lexend', 'sans-serif'], display: ['Space Grotesk', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root { --gold: #D4AF37; --bg-base: #0B0B0D; }
+        body { background-color: var(--bg-base); color: #f4f4f5; overflow: hidden; }
+
+        /* The Sovereign Glass */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 12px;
+        }
+
+        /* The Sovereign Button */
+        .sov-btn {
+            position: relative; overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white; padding: 12px 24px; border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif; font-weight: 500;
+            cursor: pointer; transition: all 0.3s ease;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .sov-btn::before {
+            content: ""; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: translateX(-100%);
+        }
+        .sov-btn::after {
+            content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 2px;
+            background: linear-gradient(to bottom, transparent, var(--gold), transparent);
+            transform: translateX(-40px); opacity: 0;
+        }
+        .sov-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); }
+        .sov-btn:hover::before { transform: translateX(100%); transition: transform 0.6s ease; }
+        .sov-btn:hover::after { transform: translateX(0px); opacity: 1; transition: transform 0.6s ease, opacity 0.3s; }
+        .sov-btn:disabled { opacity: 0.5; pointer-events: none; }
+
+        /* Custom Scrollbar for Timeline */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* Toast Animation */
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        .toast-enter { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .toast-exit { animation: slideOut 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        /* Nav Active State */
+        .nav-btn.active { background: rgba(255,255,255,0.1); color: white; }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Glow -->
+    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-zinc-800/20 blur-[120px] pointer-events-none -z-10"></div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed top-6 right-6 z-50 flex flex-col gap-3"></div>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 1: SECURE LOGIN GATE                -->
+    <!-- ========================================== -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-6 transition-opacity duration-500">
+        <div class="glass-panel w-full max-w-md p-8">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold font-display tracking-tight"><span class="text-gold">15D</span> Workspace</h1>
+                <p class="text-sm text-zinc-400 mt-2">Enter credentials to access your operating system.</p>
+            </div>
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Project ID</label>
+                    <input type="text" id="project-id" required placeholder="e.g. 15D-001" class="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold/50 transition-colors uppercase font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Authorization Code</label>
+                    <input type="password" id="auth-code" required placeholder="••••••••" class="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold/50 transition-colors font-mono">
+                </div>
+                <div id="login-error" class="hidden text-red-400 text-sm bg-red-400/10 border border-red-400/20 p-3 rounded-lg"></div>
+                <button type="submit" id="login-btn" class="sov-btn w-full mt-4">
+                    Authenticate <i data-lucide="key" class="w-[16px] h-[16px]"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 2: MAIN DASHBOARD                   -->
+    <!-- ========================================== -->
+    <div id="app-screen" class="hidden h-screen flex flex-col md:flex-row opacity-0 transition-opacity duration-500">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-72 border-r border-white/5 flex flex-col p-6 shrink-0 bg-base z-10 hidden md:flex">
+            <div class="mb-10">
+                <h1 class="text-2xl font-bold font-display"><span class="text-gold">15D</span> SDOS</h1>
+                <p class="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-sans" id="client-name-display">Client Workspace</p>
+            </div>
+            
+            <nav class="flex-1 space-y-2">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-sm transition-all">
+                    <div class="flex items-center gap-3"><i data-lucide="activity" class="w-[16px] h-[16px]"></i> Mission Control</div>
+                </button>
+                <button onclick="switchTab('scope')" id="nav-scope" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-sm transition-all">
+                    <div class="flex items-center gap-3"><i data-lucide="layers" class="w-[16px] h-[16px]"></i> Scope & Deliverables</div>
+                </button>
+                <button onclick="switchTab('financials')" id="nav-financials" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-sm transition-all">
+                    <div class="flex items-center gap-3"><i data-lucide="credit-card" class="w-[16px] h-[16px]"></i> Financials</div>
+                    <span id="nav-unpaid-badge" class="hidden bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded-full font-bold"></span>
+                </button>
+                <button onclick="switchTab('engine')" id="nav-engine" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-sm transition-all">
+                    <div class="flex items-center gap-3"><i data-lucide="plus-circle" class="w-[16px] h-[16px]"></i> Scope Engine</div>
+                </button>
+            </nav>
+            
+            <div class="pt-6 border-t border-white/5 mt-auto">
+                <div class="glass-panel p-4 bg-black/40">
+                    <p class="text-xs text-zinc-500 mb-1">Project Status</p>
+                    <p id="nav-status" class="text-sm font-medium text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Active
+                    </p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+            
+            <!-- Mobile Header -->
+            <header class="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-base z-20">
+                <h1 class="text-lg font-bold font-display"><span class="text-gold">15D</span> SDOS</h1>
+                <button class="text-zinc-400"><i data-lucide="menu"></i></button>
+            </header>
+
+            <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+                
+                <!-- Left Column: Dynamic Content Area (Switches based on Nav) -->
+                <div class="w-full md:w-1/2 lg:w-5/12 p-6 md:p-10 overflow-y-auto border-r border-white/5 relative">
+                    
+                    <!-- TAB 1: MISSION CONTROL -->
+                    <div id="tab-dashboard" class="tab-content block animate-in fade-in duration-300">
+                        <h2 class="text-2xl font-display mb-6">Metrics & Status</h2>
+                        <div class="grid grid-cols-2 gap-4 mb-8">
+                            <div class="glass-panel p-5 bg-gradient-to-br from-white/[0.02] to-transparent">
+                                <p class="text-xs text-zinc-400 uppercase tracking-wider mb-2">Completion</p>
+                                <p class="text-3xl font-display"><span id="metric-progress">0</span><span class="text-gold text-xl">%</span></p>
+                            </div>
+                            <div class="glass-panel p-5 bg-gradient-to-br from-white/[0.02] to-transparent">
+                                <p class="text-xs text-zinc-400 uppercase tracking-wider mb-2">Pending Review</p>
+                                <p class="text-3xl font-display" id="metric-pending">0</p>
+                            </div>
+                        </div>
+
+                        <div class="mb-4 flex items-center justify-between">
+                            <h3 class="text-sm font-medium text-zinc-400 uppercase tracking-wider">Active Queue</h3>
+                        </div>
+                        <div id="requests-container" class="space-y-3">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: SCOPE & DELIVERABLES -->
+                    <div id="tab-scope" class="tab-content hidden animate-in fade-in duration-300">
+                        <h2 class="text-2xl font-display mb-2">Scope Summary</h2>
+                        <p class="text-sm text-zinc-400 mb-8">The parameters and deliverables established during onboarding.</p>
+                        
+                        <div class="glass-panel p-6 bg-black/40 border border-gold/10">
+                            <h3 class="text-sm font-bold text-gold uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4"></i> Approved Scope</h3>
+                            <ul id="scope-list" class="space-y-3 text-sm text-zinc-300">
+                                <li class="flex items-start gap-3"><i data-lucide="check" class="w-4 h-4 mt-0.5 text-zinc-500"></i> Core System Infrastructure</li>
+                                <li class="flex items-start gap-3"><i data-lucide="check" class="w-4 h-4 mt-0.5 text-zinc-500"></i> Client Dashboard Module</li>
+                                <li class="flex items-start gap-3"><i data-lucide="check" class="w-4 h-4 mt-0.5 text-zinc-500"></i> Payment Integrations</li>
+                                <li class="flex items-start gap-3"><i data-lucide="check" class="w-4 h-4 mt-0.5 text-zinc-500"></i> Go-Live Deployment</li>
+                            </ul>
+                        </div>
+                        <p class="text-xs text-zinc-500 mt-4 italic">Any requirements outside this list must be processed through the Scope Engine.</p>
+                    </div>
+
+                    <!-- TAB 3: FINANCIALS -->
+                    <div id="tab-financials" class="tab-content hidden animate-in fade-in duration-300">
+                        <h2 class="text-2xl font-display mb-2">Financials & Payments</h2>
+                        <p class="text-sm text-zinc-400 mb-8">Payment milestones and invoice history.</p>
+                        
+                        <div class="space-y-4">
+                            <!-- Mock Data for Visual Layout per flowchart -->
+                            <div class="p-5 rounded-lg border border-red-500/20 bg-red-500/5 flex flex-col gap-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-medium">Phase 2: Deployment Deposit</span>
+                                    <span class="text-xs uppercase tracking-wider px-2 py-1 bg-red-500/20 text-red-400 rounded">Due</span>
+                                </div>
+                                <p class="text-xl font-display text-white">₦250,000</p>
+                                <button class="mt-2 text-sm text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded transition-colors w-max">View Invoice</button>
+                            </div>
+
+                            <div class="p-5 rounded-lg border border-white/5 bg-white/[0.02] flex flex-col gap-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-medium text-zinc-400">Phase 1: Project Kickoff</span>
+                                    <span class="text-xs uppercase tracking-wider px-2 py-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded">Paid</span>
+                                </div>
+                                <p class="text-xl font-display text-zinc-500">₦250,000</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: SCOPE ENGINE -->
+                    <div id="tab-engine" class="tab-content hidden animate-in fade-in duration-300">
+                        <h2 class="text-2xl font-display mb-2">Scope Engine</h2>
+                        <p class="text-sm text-zinc-400 mb-8">Submit requests for tasks or out-of-scope additions.</p>
+
+                        <form id="scope-engine-form" class="space-y-5 glass-panel p-6">
+                            <div>
+                                <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Request Type</label>
+                                <select id="se-type" required class="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold/50 transition-colors appearance-none">
+                                    <option value="" disabled selected>Select an option...</option>
+                                    <option value="Task">Standard Task (In Scope)</option>
+                                    <option value="Change Request">Change Request (Requires Quote)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Details & Parameters</label>
+                                <textarea id="se-details" required rows="4" placeholder="Describe the feature or change needed..." class="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold/50 transition-colors resize-none"></textarea>
+                            </div>
+                            <button type="submit" id="se-submit-btn" class="sov-btn w-full mt-2">
+                                Submit to Engine <i data-lucide="arrow-right" class="w-[16px] h-[16px]"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Right Column: The Unified Timeline / Chat (Always Visible) -->
+                <div class="w-full md:w-1/2 lg:w-7/12 flex flex-col h-[calc(100vh-65px)] md:h-screen bg-black/20">
+                    <div class="p-6 border-b border-white/5 bg-white/[0.01] flex items-center justify-between shrink-0">
+                        <h2 class="text-lg font-display flex items-center gap-2">
+                            <i data-lucide="radio" class="text-gold w-[18px] h-[18px]"></i> 
+                            Unified Timeline
+                        </h2>
+                        <span id="sync-status" class="text-xs text-zinc-500 font-mono">Syncing...</span>
+                    </div>
+                    
+                    <!-- The Chat Feed -->
+                    <div id="timeline-container" class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col">
+                        <!-- Injected via JS -->
+                    </div>
+
+                    <!-- The Chat Input Area -->
+                    <div class="p-4 md:p-6 border-t border-white/5 bg-base shrink-0">
+                        <form id="chat-form" class="relative flex items-end gap-3">
+                            <button type="button" class="p-3 text-zinc-500 hover:text-white transition-colors rounded-lg hover:bg-white/5 shrink-0" title="Attach Media (Coming Soon)">
+                                <i data-lucide="paperclip" class="w-[20px] h-[20px]"></i>
+                            </button>
+                            
+                            <textarea id="chat-input" required rows="1" placeholder="Send a message or update..." 
+                                class="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-gold/50 transition-colors resize-none overflow-hidden max-h-32"
+                                oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
+                            
+                            <button type="submit" id="chat-submit-btn" class="sov-btn shrink-0 !p-3 !rounded-xl">
+                                <i data-lucide="send" class="w-[18px] h-[18px]"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT LOGIC                           -->
+    <!-- ========================================== -->
+    <script>
+        // --- 1. CONFIGURATION ---
+        // The LIVE Google Apps Script URL as requested.
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzrUxs2EJV5yHoD5B9St1OkLQt_ycYYprxJsNNnvrh4RyQcRibNWMF4mZuPzVMaxYsOog/exec';
+        
+        let currentState = {
+            projectId: '',
+            authCode: '',
+            timelineLength: 0,
+            isPolling: false
+        };
+
+        // --- 2. INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            
+            // Check if already logged in (localStorage)
+            const savedId = localStorage.getItem('15d_project');
+            const savedCode = localStorage.getItem('15d_auth');
+            
+            if (savedId && savedCode) {
+                document.getElementById('project-id').value = savedId;
+                document.getElementById('auth-code').value = savedCode;
+                handleLogin(new Event('submit'), true); 
+            }
+        });
+
+        // --- UI NAVIGATION (TAB SWITCHING) ---
+        function switchTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('block');
+                tab.classList.add('hidden');
+            });
+            // Show target tab
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            document.getElementById('tab-' + tabId).classList.add('block');
+            
+            // Update Nav styling
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active', 'text-white'));
+            document.getElementById('nav-' + tabId).classList.add('active', 'text-white');
+        }
+
+        // --- 3. CORE API COMMUNICATION ---
+        async function apiCall(action, payload = {}) {
+            const requestBody = {
+                action: action,
+                project_id: currentState.projectId,
+                auth_code: currentState.authCode,
+                payload: payload
+            };
+
+            try {
+                // We use standard fetch. GAS doPost handles the routing.
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(requestBody)
+                });
+                const result = await response.json();
+                
+                if (!result.success) throw new Error(result.message);
+                return result.data;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        // --- 4. LOGIN & AUTHENTICATION ---
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
+
+        async function handleLogin(e, isAuto = false) {
+            if(e) e.preventDefault();
+            
+            const btn = document.getElementById('login-btn');
+            const errorDiv = document.getElementById('login-error');
+            
+            currentState.projectId = document.getElementById('project-id').value.toUpperCase();
+            currentState.authCode = document.getElementById('auth-code').value;
+
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-[16px] h-[16px] animate-spin"></i> Authenticating...`;
+            lucide.createIcons();
+            errorDiv.classList.add('hidden');
+
+            try {
+                // Fetch Dashboard Data to verify credentials
+                const data = await apiCall('getDashboardData');
+                
+                // Save credentials
+                localStorage.setItem('15d_project', currentState.projectId);
+                localStorage.setItem('15d_auth', currentState.authCode);
+
+                // Transition UI
+                document.getElementById('login-screen').classList.add('hidden');
+                const appScreen = document.getElementById('app-screen');
+                appScreen.classList.remove('hidden');
+                setTimeout(() => appScreen.classList.remove('opacity-0'), 50);
+
+                // Render Data & Start Heartbeat
+                renderDashboard(data, true);
+                startHeartbeat();
+
+            } catch (error) {
+                errorDiv.innerText = error.message;
+                errorDiv.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = `Authenticate <i data-lucide="key" class="w-[16px] h-[16px]"></i>`;
+                lucide.createIcons();
+                localStorage.removeItem('15d_project');
+                localStorage.removeItem('15d_auth');
+            }
+        }
+
+        // --- 5. THE "HEARTBEAT" (SILENT POLLING) ---
+        function startHeartbeat() {
+            if (currentState.isPolling) return;
+            currentState.isPolling = true;
+
+            // Poll every 12 seconds to keep Timeline updated
+            setInterval(async () => {
+                document.getElementById('sync-status').innerText = 'Syncing...';
+                try {
+                    const data = await apiCall('getDashboardData');
+                    renderDashboard(data, false); 
+                    document.getElementById('sync-status').innerText = 'Live';
+                } catch (e) {
+                    document.getElementById('sync-status').innerText = 'Offline';
+                }
+            }, 12000);
+        }
+
+        // --- 6. RENDER LOGIC ---
+        function renderDashboard(data, isInitialLoad = false) {
+            document.getElementById('client-name-display').innerText = data.client_name;
+            
+            // Status Logic (The Financial Gate)
+            const statusEl = document.getElementById('nav-status');
+            if (data.project_state === 'Paused_Unpaid') {
+                statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Locked (Unpaid)`;
+                statusEl.classList.add('text-red-400');
+                if(isInitialLoad) showToast("System Locked", "Operations paused. See Financials tab.");
+            } else {
+                statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Active`;
+                statusEl.classList.remove('text-red-400');
+            }
+
+            // Metrics
+            document.getElementById('metric-progress').innerText = data.stats.progress_percent || 0;
+            document.getElementById('metric-pending').innerText = data.stats.pending_review || 0;
+
+            const badge = document.getElementById('nav-unpaid-badge');
+            if (data.stats.unpaid_invoices > 0) {
+                badge.innerText = data.stats.unpaid_invoices;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            // Render Requests Queue
+            const reqContainer = document.getElementById('requests-container');
+            reqContainer.innerHTML = '';
+            if (data.requests.length === 0) {
+                reqContainer.innerHTML = `<p class="text-sm text-zinc-600 italic">No active requests in queue.</p>`;
+            } else {
+                data.requests.forEach(req => {
+                    const statusColors = {
+                        'WIP': 'text-gold border-gold/20 bg-gold/10',
+                        'Completed': 'text-green-400 border-green-500/20 bg-green-500/10',
+                        'Disputed': 'text-red-400 border-red-500/20 bg-red-500/10',
+                        'Pending_Quote': 'text-blue-400 border-blue-500/20 bg-blue-500/10'
+                    };
+                    const colorClass = statusColors[req.status] || 'text-zinc-300 border-white/10 bg-white/5';
+                    
+                    reqContainer.innerHTML += `
+                        <div class="p-4 rounded-lg bg-white/[0.02] border border-white/5 flex flex-col gap-2">
+                            <div class="flex justify-between items-start">
+                                <span class="text-xs font-mono text-zinc-500">${req.request_id}</span>
+                                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border ${colorClass}">${req.status.replace(/_/g, ' ')}</span>
+                            </div>
+                            <p class="text-sm font-medium">${req.type}</p>
+                        </div>
+                    `;
+                });
+            }
+
+            // Render Timeline
+            const tlContainer = document.getElementById('timeline-container');
+            const hasNewMessages = data.timeline.length > currentState.timelineLength;
+            
+            if (isInitialLoad || hasNewMessages) {
+                tlContainer.innerHTML = ''; 
+                
+                data.timeline.forEach(log => {
+                    const isSystem = log.sender === 'SYSTEM' || log.sender === 'System';
+                    const isClient = log.sender === data.client_name;
+                    const timeString = new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                    if (isSystem) {
+                        tlContainer.innerHTML += `
+                            <div class="flex justify-center my-4">
+                                <div class="bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs text-zinc-400 flex items-center gap-2">
+                                    <i data-lucide="git-commit" class="w-[12px] h-[12px]"></i>
+                                    <span class="font-medium text-white">${log.type.replace(/_/g, ' ')}:</span> ${log.message}
+                                </div>
+                            </div>
+                        `;
+                    } else if (isClient) {
+                        tlContainer.innerHTML += `
+                            <div class="flex flex-col items-end w-full mb-4 pl-12">
+                                <span class="text-[10px] text-zinc-500 mb-1 mr-1">${timeString}</span>
+                                <div class="bg-white/10 text-white rounded-2xl rounded-tr-sm px-5 py-3 border border-white/10 text-sm whitespace-pre-wrap">${log.message}</div>
+                            </div>
+                        `;
+                    } else {
+                        // Admin / Other
+                        tlContainer.innerHTML += `
+                            <div class="flex flex-col items-start w-full mb-4 pr-12">
+                                <span class="text-[10px] text-zinc-500 mb-1 ml-1">${log.sender} • ${timeString}</span>
+                                <div class="glass-panel !rounded-2xl !rounded-tl-sm !px-5 !py-3 !border-gold/20 !bg-gold/5 text-sm text-white whitespace-pre-wrap">${log.message}</div>
+                            </div>
+                        `;
+                    }
+                });
+
+                tlContainer.scrollTop = tlContainer.scrollHeight;
+                lucide.createIcons();
+
+                if (!isInitialLoad && hasNewMessages) {
+                    const latestLog = data.timeline[data.timeline.length - 1];
+                    if (latestLog.sender !== data.client_name) {
+                        showToast("New Update", `from ${latestLog.sender}`);
+                        try { const audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); oscillator.start(); oscillator.stop(audioCtx.currentTime + 0.1); } catch(e){}
+                    }
+                }
+                currentState.timelineLength = data.timeline.length;
+            }
+        }
+
+        // --- 7. FORM SUBMISSIONS ---
+        
+        // Chat Submit
+        document.getElementById('chat-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const btn = document.getElementById('chat-submit-btn');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = ''; input.style.height = ''; 
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-[16px] h-[16px] animate-spin"></i>`;
+            btn.disabled = true; lucide.createIcons();
+
+            try {
+                await apiCall('submitMessage', { message: message });
+                const data = await apiCall('getDashboardData');
+                renderDashboard(data, false);
+            } catch (error) {
+                showToast("Error", "Failed to send message.");
+                input.value = message;
+            } finally {
+                btn.innerHTML = `<i data-lucide="send" class="w-[18px] h-[18px]"></i>`;
+                btn.disabled = false; lucide.createIcons();
+            }
+        });
+
+        document.getElementById('chat-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('chat-form').dispatchEvent(new Event('submit')); }
+        });
+
+        // Scope Engine Submit
+        document.getElementById('scope-engine-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('se-submit-btn');
+            const type = document.getElementById('se-type').value;
+            const details = document.getElementById('se-details').value;
+
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-[16px] h-[16px] animate-spin"></i> Routing...`;
+            btn.disabled = true; lucide.createIcons();
+
+            try {
+                await apiCall('submitNewRequest', { request_type: type, details: details });
+                showToast("Request Logged", "Your request has been routed to the Scope Engine for review.");
+                document.getElementById('scope-engine-form').reset();
+                switchTab('dashboard'); // Route back to view it in queue
+                
+                // Force sync
+                const data = await apiCall('getDashboardData');
+                renderDashboard(data, false);
+            } catch (error) {
+                showToast("Error", error.message);
+            } finally {
+                btn.innerHTML = `Submit to Engine <i data-lucide="arrow-right" class="w-[16px] h-[16px]"></i>`;
+                btn.disabled = false; lucide.createIcons();
+            }
+        });
+
+        // --- 8. UI UTILITIES (Toast Notifications) ---
+        function showToast(title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'glass-panel !p-4 !bg-black/80 flex items-start gap-3 w-80 toast-enter shadow-2xl border-l-2 !border-l-gold';
+            
+            toast.innerHTML = `
+                <div class="mt-0.5 text-gold"><i data-lucide="bell" class="w-[16px] h-[16px]"></i></div>
+                <div class="flex-1">
+                    <h4 class="text-sm font-display font-bold text-white">${title}</h4>
+                    <p class="text-xs text-zinc-400 mt-1">${message}</p>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 400); 
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
